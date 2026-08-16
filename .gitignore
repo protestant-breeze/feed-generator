@@ -135,3 +135,11 @@ dist
 
 # Go build output
 go/go
+
+# Personal taste model — regenerate with scripts/trainTaste.py, do not publish
+src/taste-model.json
+
+# Local collected posts
+db.sqlite
+db.sqlite-wal
+db.sqlite-shm

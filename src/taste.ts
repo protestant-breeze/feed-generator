@@ -64,6 +64,18 @@ const TOPICS: [string, RegExp][] = [
   ['tech', /\b(internet|google|computer|apple|iphone|app|ai)\b/i],
 ]
 
+// Bot-spam penalties. These target *promotional behaviour*, not crudeness —
+// his archive is full of crude jokes and those should still rank. What gets
+// punished is follow-bait, hashtag stuffing, and paid-solicitation patterns,
+// which mimic casual register well enough to fool the taste model.
+const SPAM: [RegExp, number][] = [
+  [/(#\w+[\s,]*){5,}/, -12], // hashtag stuffing
+  [/\b(follow me|follow back|my new account|dm me|check my bio|link in bio)\b/i, -12],
+  [/\b(onlyfans|cashapp|venmo|telegram|whatsapp)\b/i, -10],
+  [/\b(subscribe|promo code|discount code|click here|sign up now)\b/i, -8],
+  [/(https?:\/\/\S+.*){3,}/, -6], // link spam
+]
+
 export type Scored = { score: number; topics: string[] }
 
 export const scorePost = (text: string): Scored => {
@@ -72,6 +84,8 @@ export const scorePost = (text: string): Scored => {
     const w = model.weights[tok]
     if (w !== undefined) score += w
   }
+  for (const [re, penalty] of SPAM) if (re.test(text)) score += penalty
+
   const topics = TOPICS.filter(([, re]) => re.test(text)).map(([n]) => n)
   return { score: Math.round(score * 100) / 100, topics }
 }

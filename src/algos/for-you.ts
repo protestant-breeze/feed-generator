@@ -31,9 +31,32 @@ export const handler = async (ctx: AppContext, params: QueryParams) => {
       return { row, rank }
     })
     .sort((a, b) => b.rank - a.rank)
-    .slice(0, params.limit)
 
-  const feed = ranked.map(({ row }) => ({ post: row.uri }))
+  // Spam accounts post the same thing repeatedly and would otherwise take over
+  // the page: cap each author, and drop near-identical text.
+  const MAX_PER_AUTHOR = 2
+  const perAuthor = new Map<string, number>()
+  const seenText = new Set<string>()
+  const feed: { post: string }[] = []
+
+  for (const { row } of ranked) {
+    if (feed.length >= params.limit) break
+
+    const author = row.uri.split('/')[2]
+    const n = perAuthor.get(author) ?? 0
+    if (n >= MAX_PER_AUTHOR) continue
+
+    const fingerprint = (row.text ?? '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .slice(0, 80)
+    if (fingerprint && seenText.has(fingerprint)) continue
+
+    perAuthor.set(author, n + 1)
+    if (fingerprint) seenText.add(fingerprint)
+    feed.push({ post: row.uri })
+  }
 
   // cursor still walks the time axis so paging terminates
   let cursor: string | undefined

@@ -27,21 +27,39 @@ const run = async () => {
   const agent = new AtpAgent({ service: 'https://bsky.social' })
   await agent.login({ identifier: handle, password })
 
+  // Which feed to publish — must match a shortname in src/algos/.
+  // Override with FEED=pittsburgh to publish the keyword feed instead.
+  const FEEDS: Record<string, { name: string; desc: string }> = {
+    'for-you': {
+      name: 'For You (jack)',
+      desc: 'A personal feed, tuned to my taste. Ranked by a model trained on ~63k of my own likes.',
+    },
+    pittsburgh: {
+      name: 'Pittsburgh',
+      desc: 'Posts from across Bluesky that mention Pittsburgh.',
+    },
+  }
+  const rkey = process.env.FEED ?? 'for-you'
+  const meta = FEEDS[rkey]
+  if (!meta) throw new Error(`Unknown feed "${rkey}" — expected one of ${Object.keys(FEEDS).join(', ')}`)
+
   await agent.api.com.atproto.repo.putRecord({
     repo: agent.session?.did ?? '',
     collection: ids.AppBskyFeedGenerator,
-    rkey: 'pittsburgh', // must match the algorithm shortname
+    rkey,
     record: {
       did: feedGenDid,
-      displayName: 'Pittsburgh',
-      description:
-        'Posts from across Bluesky that mention Pittsburgh. A simple keyword feed.',
+      displayName: meta.name,
+      description: meta.desc,
       createdAt: new Date().toISOString(),
       contentMode: AppBskyFeedDefs.CONTENTMODEUNSPECIFIED,
     },
   })
 
-  console.log('All done 🎉 Feed published as:', `at://${agent.session?.did}/${ids.AppBskyFeedGenerator}/pittsburgh`)
+  console.log(`All done 🎉 Published "${meta.name}"`)
+  console.log(`  record:  at://${agent.session?.did}/${ids.AppBskyFeedGenerator}/${rkey}`)
+  console.log(`  service: ${feedGenDid}`)
+  console.log(`  view:    https://bsky.app/profile/${agent.session?.handle}/feed/${rkey}`)
 }
 
 run()

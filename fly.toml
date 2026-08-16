@@ -1,0 +1,42 @@
+# Fly.io config for the feed generator.
+#
+# Why Fly rather than a GitHub-connected host (Render/Railway):
+#   1. `fly deploy` ships the local directory, so src/taste-model.json goes
+#      along even though it is gitignored as personal data.
+#   2. A feed generator must run continuously to consume the firehose. Hosts
+#      that sleep on idle would drop posts.
+#
+# Set `app` to whatever name you claim, then keep FEEDGEN_HOSTNAME in sync —
+# it must match the public hostname exactly or Bluesky can't verify the feed.
+
+app = "jack-feedgen"
+primary_region = "iad"          # us-east, close to the Bluesky relay
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  FEEDGEN_PORT = "3000"
+  FEEDGEN_LISTENHOST = "0.0.0.0"          # must bind all interfaces in a container
+  FEEDGEN_SQLITE_LOCATION = "/data/db.sqlite"
+  FEEDGEN_SUBSCRIPTION_ENDPOINT = "wss://bsky.network"
+  FEEDGEN_HOSTNAME = "jack-feedgen.fly.dev"
+  FEEDGEN_PUBLISHER_DID = "did:plc:5ar3nxvf36jqtqrtjuufago4"
+  FEEDGEN_SUBSCRIPTION_RECONNECT_DELAY = "3000"
+
+# Collected posts survive restarts and redeploys.
+[[mounts]]
+  source = "feedgen_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  # The firehose subscription must stay alive, so never scale to zero.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

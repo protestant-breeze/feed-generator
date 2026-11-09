@@ -1,0 +1,15 @@
+# Keep the image small and avoid shipping local state.
+# NOTE: src/taste-model.json is intentionally NOT ignored here — it is
+# gitignored (personal data) but must ship with the deploy, which is why
+# we deploy from the local directory rather than from GitHub.
+node_modules
+.git
+.gitignore
+db.sqlite
+db.sqlite-wal
+db.sqlite-shm
+.env
+dist
+*.log
+go/
+scripts/trainTaste.py

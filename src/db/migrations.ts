@@ -27,3 +27,18 @@ migrations['001'] = {
     await db.schema.dropTable('sub_state').execute()
   },
 }
+
+// Adds the columns the taste-scored "for-you" feed needs. Text is kept so the
+// scoring can be re-tuned against real captured posts without re-ingesting.
+migrations['002'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema.alterTable('post').addColumn('text', 'varchar').execute()
+    await db.schema.alterTable('post').addColumn('score', 'real').execute()
+    await db.schema.alterTable('post').addColumn('topics', 'varchar').execute()
+  },
+  async down(db: Kysely<unknown>) {
+    await db.schema.alterTable('post').dropColumn('text').execute()
+    await db.schema.alterTable('post').dropColumn('score').execute()
+    await db.schema.alterTable('post').dropColumn('topics').execute()
+  },
+}

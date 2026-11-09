@@ -1,12 +1,15 @@
 import { QueryParams } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../config'
 
-export const shortname = 'whats-alf'
+export const shortname = 'pittsburgh'
 
 export const handler = async (ctx: AppContext, params: QueryParams) => {
+  // The ingester also stores taste-scored posts for the for-you feed, so this
+  // has to filter to actual Pittsburgh posts rather than taking everything.
   let builder = ctx.db
     .selectFrom('post')
     .selectAll()
+    .where('text', 'like', '%ittsburgh%')
     .orderBy('indexedAt', 'desc')
     .orderBy('cid', 'desc')
     .limit(params.limit)

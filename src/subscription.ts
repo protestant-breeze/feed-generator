@@ -3,6 +3,7 @@ import {
   isCommit,
 } from './lexicon/types/com/atproto/sync/subscribeRepos'
 import { FirehoseSubscriptionBase, getOpsByType } from './util/subscription'
+import { scorePost, SCORE_THRESHOLD } from './taste'
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleEvent(evt: RepoEvent) {
@@ -10,25 +11,24 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
 
     const ops = await getOpsByType(evt)
 
-    // This logs the text of every post off the firehose.
-    // Just for fun :)
-    // Delete before actually using
-    for (const post of ops.posts.creates) {
-      console.log(post.record.text)
-    }
-
     const postsToDelete = ops.posts.deletes.map((del) => del.uri)
     const postsToCreate = ops.posts.creates
-      .filter((create) => {
-        // only alf-related posts
-        return create.record.text.toLowerCase().includes('alf')
-      })
       .map((create) => {
-        // map alf-related posts to a db row
+        const text = create.record.text ?? ''
+        const { score, topics } = scorePost(text)
+        const isPittsburgh = /\bpittsburgh\b/i.test(text)
+        return { create, text, score, topics, isPittsburgh }
+      })
+      // keep taste-matching posts, plus anything explicitly about Pittsburgh
+      .filter(({ score, isPittsburgh }) => isPittsburgh || score >= SCORE_THRESHOLD)
+      .map(({ create, text, score, topics }) => {
         return {
           uri: create.uri,
           cid: create.cid,
           indexedAt: new Date().toISOString(),
+          text,
+          score,
+          topics: topics.join(','),
         }
       })
 
@@ -39,6 +39,11 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .execute()
     }
     if (postsToCreate.length > 0) {
+      for (const post of postsToCreate) {
+        console.log(
+          `[${post.score}] ${post.topics || '-'} :: ${post.text.replace(/\s+/g, ' ').slice(0, 90)}`,
+        )
+      }
       await this.db
         .insertInto('post')
         .values(postsToCreate)
